@@ -1,0 +1,71 @@
+---
+title: "Human Activity Recognition Dataset Analytics"
+author: "Vaishnevi Varadarajan"
+output: html_document
+---
+
+The following document summarizes the steps performed in cleaning and training models from the training set to perform successful prediction of manner of exercise performed by the test set. 
+
+### 1. Data Ingestion and Cleansing
+The first step is the ingestion of data from a csv file using the command below. Also, a quick summary of number of empty elements,"NA's" and "zeros" is performed to understand the structure of the data set. 
+
+```{r}
+train_data <- read.csv("DATA_PROJECT/pml-training.csv")
+test_data <- read.csv("DATA_PROJECT/pml-testing.csv")
+colSums(train_data == "")
+colSums(is.na(train_data))
+```
+
+Based on the outputs from above, it can be seen that many columns have NA's and empty values. These columns are discarded. Also, columns with names and timestamps are discarded since these are not really of any value. 
+
+```{r}
+temp1 <- colSums(train_data == "")
+temp2 <- colSums(is.na(train_data))
+ans1 <- which(temp1>10000)
+ans2 <- which(temp2>10000)
+trim_train_data <- train_data[-c(1:7,ans1,ans2)]
+dim(trim_train_data)
+```
+
+From above, it can be seen that only 53 columns have been selected from the original training data.
+
+###2. Data Exploration
+Litreature on the dataset explains that the subjects threw their hips forward in Classe E while in a perfect bicep curl (Classe A), the range of motion of the hip is limited. 
+
+A quick plot of the yaw,pitch and roll of the belt per classe illustrates clear boundaries between classe A and classe E for this. For this modeling exercise, I choose to use random forest due to its intrinsic capability to select appropriate influencers (features). 
+
+
+```{r,echo=FALSE}
+library(ggplot2)
+qplot(roll_belt,yaw_belt,colour=classe,data=trim_train_data)
+qplot(pitch_belt,yaw_belt,colour=classe,data=trim_train_data)
+qplot(pitch_belt,roll_belt,colour=classe,data=trim_train_data)
+```
+
+###3. Stratified Sampling and Model Training
+I further divide the training data into validation (20%) and training data (80%) to be able to assess the model's prediction capabilities. The code for this is given below.
+
+```{r}
+library(caret)
+set.seed(3456)
+index1 <- createDataPartition(trim_train_data$classe,p=0.2,list=FALSE)
+train_data_fin <- trim_train_data[-index1,]
+valid_data_fin <- trim_train_data[index1,]
+modfit2 <- train(classe~.,method="rf",data=train_data_fin)
+modfit2
+```
+###4. Model Validation
+Looking at the model parameters listed above, the accuracy of the model is 99%. Now, we validate this model against the validation set. Plotting a truth table for the validation set, we get 99.3% accuracy of classification. 
+
+```{r}
+predict2 <- predict(modfit2,valid_data_fin)
+table(predict2,valid_data_fin$classe)
+```
+###5. Model Testing
+Finally, testing the model against the test set, the final sequence of prediction values is given below. 
+
+```{r}
+predict_fin <- predict(modfit2,test_data)
+predict_fin
+```
+
